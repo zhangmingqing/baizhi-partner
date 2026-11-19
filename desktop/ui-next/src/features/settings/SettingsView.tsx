@@ -6,7 +6,7 @@
 //   sound-enabled 事件与托盘/桌宠双向同步);
 // - models/mcp/kernel_env 走保存条:save_config 全量写回(表单外字段从载入
 //   配置透传),壳保存后重启引擎——重启过程由全局引擎横幅外显,这里不管。
-import { IconAdjustmentsHorizontal, IconAlertTriangle, IconDice5, IconPhoto, IconRotate, IconTrash, IconWand, IconBrain, IconCheck, IconChevronDown, IconInfoCircle, IconServer, IconSparkles, IconTerminal2, IconUser, IconWorld, type TablerIcon } from "@tabler/icons-react";
+import { IconAdjustmentsHorizontal, IconAlertTriangle, IconDice5, IconPhoto, IconPlugConnected, IconRotate, IconTrash, IconWand, IconBrain, IconCheck, IconChevronDown, IconInfoCircle, IconServer, IconSparkles, IconTerminal2, IconUser, IconWorld, type TablerIcon } from "@tabler/icons-react";
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from "react";
 
 import { resolveShortcut } from "@/app/shortcuts";
@@ -62,6 +62,7 @@ import { engineCaps } from "@/lib/ipc/approvals";
 import { AboutSection } from "./AboutSection";
 import { BrowserSection } from "./BrowserSection";
 import { McpSection } from "./McpSection";
+import { PluginsSection } from "./PluginsSection";
 import { SkillsSection } from "./SkillsSection";
 import { ModelsSection } from "./ModelsSection";
 import type { BaizhiSyncResult, McModelsSyncResult } from "@/lib/ipc/account";
@@ -78,7 +79,7 @@ import {
   type SettingsDraft,
 } from "./settingsForm";
 
-export type SettingsSection = "general" | "account" | "models" | "mcp" | "skills" | "browser" | "env" | "about";
+export type SettingsSection = "general" | "account" | "models" | "mcp" | "skills" | "plugins" | "browser" | "env" | "about";
 
 const errMsg = (e: unknown): string => (e instanceof Error ? e.message : String(e));
 
@@ -1162,6 +1163,7 @@ export const SettingsView = forwardRef<SettingsViewHandle, {
     { id: "models", label: t("settings.nav.models"), desc: t("settings.desc.models"), icon: IconBrain },
     { id: "mcp", label: t("settings.nav.mcp"), desc: t("settings.desc.mcp"), icon: IconServer },
     { id: "skills", label: t("settings.nav.skills"), desc: t("settings.desc.skills"), icon: IconSparkles },
+    { id: "plugins", label: t("settings.nav.plugins"), desc: t("settings.desc.plugins"), icon: IconPlugConnected },
     ...(browserExt
       ? [{ id: "browser" as const, label: t("settings.nav.browser"), desc: t("settings.desc.browser"), icon: IconWorld }]
       : []),
@@ -1224,6 +1226,9 @@ export const SettingsView = forwardRef<SettingsViewHandle, {
       case "skills":
         // 技能库是壳侧即时读写(skills_* 命令),不进 config 草稿,不走 configGate
         return <SkillsSection />;
+      case "plugins":
+        // 插件同样由壳侧即时维护(plugins_* 命令),不占用 config 草稿
+        return <PluginsSection />;
       case "browser":
         // 配对是壳侧即时动作,不吃 config 草稿,故不走 configGate
         return <BrowserSection />;

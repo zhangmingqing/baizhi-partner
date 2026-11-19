@@ -339,6 +339,11 @@ impl OhmyDriver {
             }
         };
 
+        // 插件贡献的模型与 MCP 只进引擎派生配置;启动前合成同一份有效配置,
+        // 保证 models_list / 会话创建看到与 settings.json 一致的选择集。
+        let mut effective = cfg.clone();
+        crate::plugins::merge_effective(&mut effective, &cfg_dir);
+        let cfg = &effective;
         let mut models = parse_manifest_models(&cfg.models);
         // 会员条目的运行时 model_config 模板随引擎实例定格(与清单同一快照;
         // Cookie 头建会话/切模型时才从罐现取,见 session.rs)

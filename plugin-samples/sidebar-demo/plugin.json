@@ -1,0 +1,80 @@
+{
+  "id": "sidebar-demo",
+  "name": "侧栏演示",
+  "version": "1.0.0",
+  "description": "演示如何用 plugin.json 在任务列四个位置插入区块，并打开设置页。",
+  "author": "baizhi-partner",
+  "homepage": "https://github.com/zhangmingqing/baizhi-partner",
+  "icon": "◆",
+  "contributes": {
+    "sidebar": [
+      {
+        "id": "today",
+        "title": "今日焦点",
+        "placement": "top",
+        "order": 10,
+        "blocks": [
+          {
+            "type": "text",
+            "text": "这一块由插件声明，不执行任意脚本。文本、列表、按钮和链接都写在 plugin.json 里。"
+          },
+          {
+            "type": "list",
+            "items": [
+              "在设置 → 插件里启停或卸载",
+              "拖动标题右侧手柄调整顺序"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "quick",
+        "title": "快捷入口",
+        "placement": "above-list",
+        "order": 10,
+        "blocks": [
+          {
+            "type": "button",
+            "label": "打开插件设置",
+            "action": {
+              "type": "open_settings",
+              "section": "plugins"
+            }
+          },
+          {
+            "type": "link",
+            "label": "MonkeyCode 仓库",
+            "url": "https://github.com/chaitin/MonkeyCode"
+          }
+        ]
+      },
+      {
+        "id": "tips",
+        "title": "插件能力",
+        "placement": "below-list",
+        "order": 10,
+        "blocks": [
+          {
+            "type": "divider"
+          },
+          {
+            "type": "text",
+            "text": "同一份清单还可以声明 theme（CSS 变量）、models 与 mcp_servers；它们只在引擎派生配置里合并。"
+          }
+        ]
+      },
+      {
+        "id": "footer",
+        "title": "sidebar-demo",
+        "placement": "bottom",
+        "order": 10,
+        "blocks": [
+          {
+            "type": "text",
+            "text": "v1.0.0 · 本地示例插件"
+          }
+        ]
+      }
+    ]
+  }
+}

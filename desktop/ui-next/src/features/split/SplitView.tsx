@@ -97,6 +97,7 @@ import { groupSessions, projectKey, projectName, readArchivedProjects, readColla
 import { Brand } from "@/features/titlebar/TitleBar";
 import { useUpdate } from "@/features/update/useUpdate";
 import { isMacShell, openExternal } from "@/lib/ipc/host";
+import { PluginSidebarPanels } from "@/features/plugins/PluginSidebarPanels";
 import { readFold, writeFold } from "@/lib/util/prefs";
 import { renameIsNoop } from "@/lib/util/rename";
 import { cloudSlotId, cloudTaskIdOf, firstEmptyIn, isCloudSlotId, LOAD_MIME, SWAP_MIME } from "./slots";
@@ -1487,6 +1488,7 @@ function WorkbenchList({
         </span>
         {!isMacShell() && <span className="flex shrink-0 items-center">{listActions}</span>}
       </div>
+      <PluginSidebarPanels placement="top" />
       {/* tab 盒式切换(形态五代:border 下划线 → box 白 pill → box 补轨
           → 文字级 → 回归 box,2026-08-20 用户「改成 box」):与换任务
           装载卡的 tabs-box 同语汇,选中 = 白底 pill;侧栏底色即 base-200,
@@ -1507,6 +1509,7 @@ function WorkbenchList({
           ))}
         </div>
       </div>
+      <PluginSidebarPanels placement="above-list" />
       <div className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto p-2 [scrollbar-gutter:stable]">
         {tab === "local" ? (
           // menu 截断铁律(§6):flex-nowrap 一个都不能少,行内 truncate 链
@@ -1810,7 +1813,9 @@ function WorkbenchList({
             }}
           />
         ) : null}
+        <PluginSidebarPanels placement="below-list" />
       </div>
+      <PluginSidebarPanels placement="bottom" />
       {/* 设置沉底(2026-08-18 用户定案「放在 sidebar 的下方」;参考图把
           它放右下角):列收起时经 ☰ 一击可达,不在头部留第二个门
           (§3 一处法定位置) */}

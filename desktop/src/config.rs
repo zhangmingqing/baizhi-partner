@@ -822,6 +822,13 @@ fn write_ohmyagent_config(
 ) -> Result<(), String> {
     fs::create_dir_all(dir).map_err(|e| format!("创建引擎配置目录失败: {e}"))?;
 
+    // 启用插件贡献的 models/MCP 只进派生配置,不写回权威 config.json。
+    // 插件目录 = 应用配置目录(引擎目录的父目录);测试用的临时目录没有
+    // plugins/ 子目录时这一步是纯 no-op。
+    let mut effective = cfg.clone();
+    crate::plugins::merge_effective(&mut effective, dir.parent().unwrap_or(dir));
+    let cfg = &effective;
+
     let empty = vec![];
     let models_arr = cfg.models.as_array().unwrap_or(&empty);
 

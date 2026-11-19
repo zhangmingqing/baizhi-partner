@@ -19,6 +19,7 @@ mod config;
 mod driver;
 #[cfg(target_os = "windows")]
 mod native_pet;
+mod plugins;
 mod preview;
 mod repo;
 mod skill_import;
@@ -1643,6 +1644,13 @@ fn main() {
             skill_import::commands::skills_import_cancel,
             skills::skills_recovery_list,
             skills::skills_recovery_resolve,
+            plugins::plugins_list,
+            plugins::plugins_install,
+            plugins::plugins_install_zip,
+            plugins::plugins_install_url,
+            plugins::plugins_uninstall,
+            plugins::plugins_set_enabled,
+            plugins::plugins_market_refresh,
             driver::upload_begin,
             driver::upload_file_path,
             driver::upload_read,

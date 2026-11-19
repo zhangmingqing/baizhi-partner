@@ -25,6 +25,7 @@ import { SplitView } from "@/features/split/SplitView";
 import { cloudSlotId, isCloudSlotId } from "@/features/split/slots";
 import { useSplitState } from "@/features/split/useSplitState";
 import { SessionSkillsConsumptionCoordinator, SessionSkillsConsumptionProvider } from "@/features/skills/SessionSkillsConsumption";
+import { PluginProvider } from "@/features/plugins/PluginProvider";
 import { SkillsCatalogProvider } from "@/features/skills/SkillsCatalogProvider";
 import { preserveNewerSessionSkills, sessionSkillsRevisionTargets } from "@/features/skills/sessionSkillsState";
 import { useTodos } from "@/features/todo/useTodos";
@@ -603,6 +604,7 @@ function AppShell({ onTransportChanged }: { onTransportChanged: (generation: num
     <SessionSkillsConsumptionProvider coordinator={sessionSkillsCoordinator}>
       <SkillsCatalogProvider beforeAcceptCatalog={synchronizeSessionSkills}>
         <SettingsNavigationProvider openSettings={openSettings}>
+          <PluginProvider>
           <CloudQueueCoordinatorProvider
             identityRevision={cloudIdentityRevision}
             onAttention={handleCloudQueueAttention}
@@ -799,6 +801,7 @@ function AppShell({ onTransportChanged }: { onTransportChanged: (generation: num
       </div>
       )}
           </CloudQueueCoordinatorProvider>
+          </PluginProvider>
         </SettingsNavigationProvider>
       </SkillsCatalogProvider>
     </SessionSkillsConsumptionProvider>

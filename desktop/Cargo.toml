@@ -65,14 +65,14 @@ tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
 # Rust→TS 契约类型生成(derive 经 cfg_attr(test) 门控,不进产物二进制):
 # `cargo test export_bindings` 产出 desktop/ui/src/gen/,见 driver/frame.rs
 ts-rs = "12"
-# 仅测试 fixture 写入 ZIP；生产代码不依赖其 EOCD/central 解析器。
-zip = { version = "4.6.1", default-features = false, features = ["deflate-flate2"] }
 
 # 桌宠窗口在 macOS 须是 NonactivatingPanel:普通 NSWindow 被点击会激活
 # 应用(主窗口被提到最前并抢焦点→桌宠被显隐逻辑藏掉)。锁 rev 保证可复现。
 [target.'cfg(unix)'.dependencies]
 # 文件夹技能导入：openat/statat/O_NOFOLLOW 固定来源根句柄，避免路径复开 TOCTOU。
 rustix = { version = "1", features = ["fs"] }
+# 插件 ZIP 侧载:只解 Store/Deflate,拒绝符号链接与越界路径(plugins.rs)。
+zip = { version = "4.6.1", default-features = false, features = ["deflate-flate2"] }
 
 [target.'cfg(target_os = "macos")'.dependencies]
 tauri-nspanel = { git = "https://github.com/ahkohd/tauri-nspanel", rev = "a3122e894383aa068ec5365a42994e3ac94ba1b6" }
