@@ -145,18 +145,91 @@ impl Default for DesktopConfig {
     }
 }
 
+/// 副实例标记文件：放在 .app/Contents/Resources/instance-profile。
+/// 主实例没有该文件，路径与 WebView 数据都保持原样；复制出的独立实例
+/// 写入一个 id 后，配置、会话、插件和 WebView 存储全部落到独立子目录。
+const INSTANCE_MARKER: &str = "instance-profile";
+/// 开发/启动器逃生门：优先于包内标记，避免为了试独立实例反复改 .app。
+const INSTANCE_ENV: &str = "MC_DESKTOP_INSTANCE";
+
+/// 校验实例 id：只允许单层目录名。标记文件或环境变量都来自外部输入，
+/// 不校验就能把配置目录指到任意位置。
+fn valid_instance_id(raw: &str) -> Option<&str> {
+    let id = raw.trim();
+    if id.is_empty() || id.len() > 64 || id == "." || id == ".." {
+        return None;
+    }
+    id.bytes()
+        .all(|b| b.is_ascii_alphanumeric() || matches!(b, b'.' | b'_' | b'-'))
+        .then_some(id)
+}
+
+fn instance_scoped_path(base: &Path, profile: Option<&str>) -> PathBuf {
+    match profile {
+        Some(id) => base.join("instances").join(id),
+        None => base.to_path_buf(),
+    }
+}
+
+fn read_bundle_instance_profile() -> Option<String> {
+    let exe = std::env::current_exe().ok()?;
+    let resources = exe.parent()?.parent()?.join("Resources");
+    let raw = fs::read_to_string(resources.join(INSTANCE_MARKER)).ok()?;
+    valid_instance_id(&raw).map(str::to_owned)
+}
+
+/// 当前进程的副实例 id。用文件而不是只靠环境变量：Finder 双击启动拿不到
+/// 自定义环境；同 bundle id 的两个 .app 靠包内标记区分数据目录。
+pub fn instance_profile() -> Option<&'static str> {
+    static PROFILE: std::sync::OnceLock<Option<String>> = std::sync::OnceLock::new();
+    PROFILE
+        .get_or_init(|| {
+            let env = std::env::var(INSTANCE_ENV)
+                .ok()
+                .and_then(|raw| valid_instance_id(&raw).map(str::to_owned));
+            let profile = env.or_else(read_bundle_instance_profile);
+            if let Some(id) = profile.as_deref() {
+                eprintln!("[desktop] 副实例配置: {id}");
+            }
+            profile
+        })
+        .as_deref()
+}
+
+/// macOS 14+ 给副实例分配独立的 WKWebsiteDataStore；主实例返回 None，
+/// 继续用系统默认存储，行为不变。低版本 macOS 没有这个 API，WebView
+/// 存储仍与主实例共用（配置目录仍然隔离）。
+#[cfg(target_os = "macos")]
+pub fn instance_data_store_identifier() -> Option<[u8; 16]> {
+    let profile = instance_profile()?;
+    let mut hasher = Sha256::new();
+    hasher.update(b"monkeycode-instance-webview\0");
+    hasher.update(profile.as_bytes());
+    let digest = hasher.finalize();
+    let mut id = [0u8; 16];
+    id.copy_from_slice(&digest[..16]);
+    // RFC 4122 version 5 / variant bits; WKWebView 只要求稳定的 16 字节。
+    id[6] = (id[6] & 0x0f) | 0x50;
+    id[8] = (id[8] & 0x3f) | 0x80;
+    Some(id)
+}
+
 pub fn config_dir(app: &AppHandle) -> Result<PathBuf, String> {
-    app.path()
+    let base = app
+        .path()
         .app_config_dir()
-        .map_err(|e| format!("无法定位配置目录: {e}"))
+        .map_err(|e| format!("无法定位配置目录: {e}"))?;
+    Ok(instance_scoped_path(&base, instance_profile()))
 }
 
 /// 应用私有的本地数据目录。与 config_dir 分开：设置适合漫游/备份，
 /// 对话工作区及附件体积可能较大，应留在当前设备。
 pub fn local_data_dir(app: &AppHandle) -> Result<PathBuf, String> {
-    app.path()
+    let base = app
+        .path()
         .app_local_data_dir()
-        .map_err(|e| format!("无法定位应用数据目录: {e}"))
+        .map_err(|e| format!("无法定位应用数据目录: {e}"))?;
+    Ok(instance_scoped_path(&base, instance_profile()))
 }
 
 /// 用户主目录。语义严格对齐引擎(Go)的 os.UserHomeDir——壳在这里算出的
@@ -997,6 +1070,23 @@ mod tests {
             std::process::id(),
             TEMP_FILE_SEQ.fetch_add(1, Ordering::Relaxed)
         ))
+    }
+
+    #[test]
+    fn instance_profile_is_validated_and_scoped() {
+        assert_eq!(valid_instance_id("standalone"), Some("standalone"));
+        assert_eq!(valid_instance_id(" standalone\n"), Some("standalone"));
+        assert_eq!(valid_instance_id("../escape"), None);
+        assert_eq!(valid_instance_id("a/b"), None);
+        assert_eq!(valid_instance_id(""), None);
+        assert_eq!(
+            instance_scoped_path(Path::new("/base"), None),
+            PathBuf::from("/base")
+        );
+        assert_eq!(
+            instance_scoped_path(Path::new("/base"), Some("standalone")),
+            PathBuf::from("/base/instances/standalone")
+        );
     }
 
     #[test]

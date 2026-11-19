@@ -718,65 +718,70 @@ fn create_preview(
     } else {
         WebviewUrl::External(url)
     };
+    let mut preview_builder = WebviewBuilder::new(LABEL, webview_url)
+        .on_navigation(move |url| {
+            if let Some(action) = preview_result_action(url) {
+                let _ = callback_app.emit_to("main", "preview-result-action", action);
+                false
+            } else if url.scheme() == PREVIEW_RESULT_SCHEME {
+                false
+            } else if let Some(result) = serialize_result(url) {
+                match result { Ok(Some((request_id, html))) => { let _=callback_app.emit_to("main","preview-serialized",serde_json::json!({"requestId":request_id,"html":html})); }, Ok(None)=>{}, Err(error)=>{let _=callback_app.emit_to("main","preview-serialized-error",serde_json::json!({"requestId":url.host_str().unwrap_or(""),"error":error}));} }
+                false
+            } else if let Some(result) = capture_result(url) {
+                match result {
+                    Ok(Some((request_id, data_url, copy_to_clipboard))) => {
+                        // 本回调在主线程消息泵里跑;Windows 系统剪贴板是全局锁
+                        // (OpenClipboard 可被他程占住而阻塞),写入挪去独立线程,
+                        // 完成后再发事件
+                        let app = callback_app.clone();
+                        std::thread::spawn(move || {
+                            let clipboard_error = copy_to_clipboard
+                                .then(|| copy_capture_to_clipboard(&data_url))
+                                .transpose()
+                                .err();
+                            let _ = app.emit_to("main", "preview-captured", serde_json::json!({"requestId":request_id,"dataUrl":data_url,"clipboardError":clipboard_error}));
+                        });
+                    }
+                    Ok(None) => {}
+                    Err(error) => { let _ = callback_app.emit_to("main", "preview-capture-error", serde_json::json!({"requestId":url.host_str().unwrap_or(""),"error":error})); }
+                }
+                false
+            } else if let Some(result) = picker_result(url) {
+                PICKER_ACTIVE.store(false, Ordering::Relaxed);
+                match result {
+                    Ok(snapshot) => { let _ = callback_app.emit_to("main", "preview-element-picked", snapshot); }
+                    Err(error) => { let _ = callback_app.emit_to("main", "preview-picker-error", error); }
+                }
+                false
+            } else if let Some(root) = &navigation_root {
+                is_artifact_url(url)
+                    || url.to_file_path()
+                        .ok()
+                        .and_then(|path| path.canonicalize().ok())
+                        .is_some_and(|path| path.starts_with(root))
+            } else {
+                is_preview_url(url)
+            }
+        })
+        .on_page_load(|webview, _| {
+            let picker_active = PICKER_ACTIVE.load(Ordering::Relaxed);
+            let _ = webview.eval(format!(
+                "{PICKER_JS};window.__mcPicker.toggle({picker_active})"
+            ));
+            let _ = webview.eval(CAPTURE_JS);
+            let _ = webview.eval(SERIALIZE_JS);
+            if let Ok(scale) = preview_zoom() {
+                let _ = apply_zoom(&webview, scale);
+            }
+        });
+    #[cfg(target_os = "macos")]
+    if let Some(store) = crate::config::instance_data_store_identifier() {
+        preview_builder = preview_builder.data_store_identifier(store);
+    }
     let view = window
         .add_child(
-            WebviewBuilder::new(LABEL, webview_url)
-                .on_navigation(move |url| {
-                    if let Some(action) = preview_result_action(url) {
-                        let _ = callback_app.emit_to("main", "preview-result-action", action);
-                        false
-                    } else if url.scheme() == PREVIEW_RESULT_SCHEME {
-                        false
-                    } else if let Some(result) = serialize_result(url) {
-                        match result { Ok(Some((request_id, html))) => { let _=callback_app.emit_to("main","preview-serialized",serde_json::json!({"requestId":request_id,"html":html})); }, Ok(None)=>{}, Err(error)=>{let _=callback_app.emit_to("main","preview-serialized-error",serde_json::json!({"requestId":url.host_str().unwrap_or(""),"error":error}));} }
-                        false
-                    } else if let Some(result) = capture_result(url) {
-                        match result {
-                            Ok(Some((request_id, data_url, copy_to_clipboard))) => {
-                                // 本回调在主线程消息泵里跑;Windows 系统剪贴板是全局锁
-                                // (OpenClipboard 可被他程占住而阻塞),写入挪去独立线程,
-                                // 完成后再发事件
-                                let app = callback_app.clone();
-                                std::thread::spawn(move || {
-                                    let clipboard_error = copy_to_clipboard
-                                        .then(|| copy_capture_to_clipboard(&data_url))
-                                        .transpose()
-                                        .err();
-                                    let _ = app.emit_to("main", "preview-captured", serde_json::json!({"requestId":request_id,"dataUrl":data_url,"clipboardError":clipboard_error}));
-                                });
-                            }
-                            Ok(None) => {}
-                            Err(error) => { let _ = callback_app.emit_to("main", "preview-capture-error", serde_json::json!({"requestId":url.host_str().unwrap_or(""),"error":error})); }
-                        }
-                        false
-                    } else if let Some(result) = picker_result(url) {
-                        PICKER_ACTIVE.store(false, Ordering::Relaxed);
-                        match result {
-                            Ok(snapshot) => { let _ = callback_app.emit_to("main", "preview-element-picked", snapshot); }
-                            Err(error) => { let _ = callback_app.emit_to("main", "preview-picker-error", error); }
-                        }
-                        false
-                    } else if let Some(root) = &navigation_root {
-                        is_artifact_url(url)
-                            || url.to_file_path()
-                                .ok()
-                                .and_then(|path| path.canonicalize().ok())
-                                .is_some_and(|path| path.starts_with(root))
-                    } else {
-                        is_preview_url(url)
-                    }
-                })
-                .on_page_load(|webview, _| {
-                    let picker_active = PICKER_ACTIVE.load(Ordering::Relaxed);
-                    let _ = webview.eval(format!(
-                        "{PICKER_JS};window.__mcPicker.toggle({picker_active})"
-                    ));
-                    let _ = webview.eval(CAPTURE_JS);
-                    let _ = webview.eval(SERIALIZE_JS);
-                    if let Ok(scale) = preview_zoom() {
-                        let _ = apply_zoom(&webview, scale);
-                    }
-                }),
+            preview_builder,
             LogicalPosition::new(bounds.x, bounds.y),
             LogicalSize::new(bounds.width, bounds.height),
         )

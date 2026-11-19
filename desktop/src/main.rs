@@ -1085,6 +1085,12 @@ fn create_main_window(app: &AppHandle, page: &str) {
         builder = builder.inner_size(state.width as f64, state.height as f64);
     }
     builder = builder.visible(false);
+    // 副实例使用独立的 WKWebsiteDataStore，避免与主实例共享 localStorage、
+    // cookie 和侧栏偏好。主实例没有 profile，保持系统默认存储。
+    #[cfg(target_os = "macos")]
+    if let Some(store) = config::instance_data_store_identifier() {
+        builder = builder.data_store_identifier(store);
+    }
     // Windows/macOS:Tauri 原生拖放处理器会在窗口层吞掉文件拖拽,HTML5 的
     // drag/drop 事件到不了页面(对话区拖入图片/文件依赖 DOM 事件),禁用后
     // 由 UI 侧统一处理。Linux 相反:WebKitGTK 在 wry 窗口里的 HTML5 拖拽
@@ -1273,7 +1279,7 @@ fn ensure_pet_window(app: &AppHandle) {
         return;
     }
     let saved = *app.state::<PetPos>().0.lock_ok();
-    let win = WebviewWindowBuilder::new(app, "pet", WebviewUrl::App("pet.html".into()))
+    let mut builder = WebviewWindowBuilder::new(app, "pet", WebviewUrl::App("pet.html".into()))
         .title("MonkeyCode 桌宠")
         .inner_size(PET_W, PET_H)
         // GTK 的不可缩放窗口按内容自然尺寸布局,resize 与几何约束全被忽略,
@@ -1296,8 +1302,12 @@ fn ensure_pet_window(app: &AppHandle) {
         .accept_first_mouse(true)
         .focusable(false)
         .focused(false)
-        .visible(false)
-        .build();
+        .visible(false);
+    #[cfg(target_os = "macos")]
+    if let Some(store) = config::instance_data_store_identifier() {
+        builder = builder.data_store_identifier(store);
+    }
+    let win = builder.build();
     match win {
         Ok(win) => {
             let position = pet_position(app, saved);
