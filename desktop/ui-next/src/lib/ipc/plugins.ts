@@ -20,6 +20,10 @@ export interface PluginSidebarPanel {
   placement: "top" | "above-list" | "below-list" | "bottom" | "";
   order: number;
   blocks: PluginSidebarBlock[];
+  /** 非空时用沙箱 iframe 加载;blocks 仅作降级内容。 */
+  entry?: string;
+  /** iframe 初始高度(px)。 */
+  height?: number;
 }
 
 export interface PluginView {
@@ -36,6 +40,7 @@ export interface PluginView {
   theme: Record<string, string>;
   models: Record<string, unknown>[];
   mcp_servers: Record<string, Record<string, unknown>>;
+  has_process: boolean;
 }
 
 export function pluginsList(): Promise<PluginView[]> {
@@ -65,6 +70,21 @@ export function pluginsSetEnabled(id: string, enabled: boolean): Promise<void> {
 
 export function pluginsMarketRefresh(url: string): Promise<{ items?: unknown[]; plugins?: unknown[] }> {
   return invoke<{ items?: unknown[]; plugins?: unknown[] }>("plugins_market_refresh", { url });
+}
+
+/** 全局进程插件闸门。默认关闭,必须在设置页显式打开。 */
+export function pluginsProcessAllowed(): Promise<boolean> {
+  if (!inDesktopShell()) return Promise.resolve(false);
+  return invoke<boolean>("plugins_process_allowed");
+}
+
+export function pluginsSetProcessAllowed(allowed: boolean): Promise<void> {
+  return invoke<void>("plugins_set_process_allowed", { allowed });
+}
+
+/** 调用插件进程的 JSON-RPC。一次调用拉起一个进程,stdout 最后一行须是 {result} 或 {error}。 */
+export function pluginsProcessCall(id: string, method: string, params?: unknown): Promise<unknown> {
+  return invoke<unknown>("plugins_process_call", { id, method, params: params ?? null });
 }
 
 /** 原生选择器:目录侧载 / ZIP 侧载共用;取消或浏览器模式返回 null。 */

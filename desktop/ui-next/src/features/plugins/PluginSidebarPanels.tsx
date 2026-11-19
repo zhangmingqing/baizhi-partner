@@ -9,6 +9,7 @@ import { openExternal } from "@/lib/ipc/host";
 import type { PluginAction, PluginSidebarPanel, PluginView } from "@/lib/ipc/plugins";
 import { useI18n } from "@/lib/i18n";
 
+import { PluginPanelFrame } from "./PluginPanelFrame";
 import { usePlugins } from "./PluginProvider";
 
 type Placement = "top" | "above-list" | "below-list" | "bottom";
@@ -92,7 +93,7 @@ export function PluginSidebarPanels({ placement }: { placement: Placement }) {
 
   return (
     <div data-plugin-sidebar={placement} className="flex shrink-0 flex-col gap-1 px-2 pb-1">
-      {rows.map(({ panel, key }) => {
+      {rows.map(({ plugin, panel, key }) => {
         const isCollapsed = collapsed[key] ?? false;
         return (
           <section
@@ -133,8 +134,13 @@ export function PluginSidebarPanels({ placement }: { placement: Placement }) {
               </span>
             </div>
             {!isCollapsed && (
+              panel.entry ? (
+                <div className="px-2 pb-2">
+                  <PluginPanelFrame plugin={plugin} panel={panel} />
+                </div>
+              ) : (
               <div className="flex flex-col gap-1 px-2 pb-2">
-                {panel.blocks.map((block, index) => {
+                {(panel.blocks ?? []).map((block, index) => {
                   if (block.type === "text") {
                     return (
                       <p key={index} className="m-0 text-xs leading-relaxed break-words whitespace-pre-wrap text-base-content/60">
@@ -180,6 +186,7 @@ export function PluginSidebarPanels({ placement }: { placement: Placement }) {
                   );
                 })}
               </div>
+              )
             )}
           </section>
         );

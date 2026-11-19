@@ -11,6 +11,9 @@ import {
   pluginsList,
   pluginsMarketRefresh,
   pluginsSetEnabled,
+  pluginsProcessAllowed,
+  pluginsProcessCall,
+  pluginsSetProcessAllowed,
   pluginsUninstall,
   type PluginView,
 } from "@/lib/ipc/plugins";
@@ -26,6 +29,9 @@ interface PluginsContextValue {
   uninstall: (id: string) => Promise<void>;
   setEnabled: (id: string, enabled: boolean) => Promise<void>;
   marketRefresh: (url: string) => Promise<unknown[]>;
+  processAllowed: boolean;
+  setProcessAllowed: (allowed: boolean) => Promise<void>;
+  callProcess: (id: string, method: string, params?: unknown) => Promise<unknown>;
 }
 
 const NOOP = (): Promise<never> => Promise.reject(new Error("插件运行时未初始化"));
@@ -40,6 +46,9 @@ const PluginsContext = createContext<PluginsContextValue>({
   uninstall: NOOP,
   setEnabled: NOOP,
   marketRefresh: () => Promise.resolve([]),
+  processAllowed: false,
+  setProcessAllowed: NOOP,
+  callProcess: NOOP,
 });
 
 const errText = (e: unknown) => (e instanceof Error ? e.message : String(e));
@@ -48,12 +57,17 @@ export function PluginProvider({ children }: { children: ReactNode }) {
   const [plugins, setPlugins] = useState<PluginView[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [processAllowed, setProcessAllowedState] = useState(false);
 
   const reload = useCallback(async () => {
     try {
-      const next = await pluginsList();
+      const [next, allowed] = await Promise.all([
+        pluginsList(),
+        pluginsProcessAllowed().catch(() => false),
+      ]);
       // 浏览器模式/测试桩可能没有宿主实现,统一退化为空列表。
       setPlugins(Array.isArray(next) ? next : []);
+      setProcessAllowedState(Boolean(allowed));
       setError(null);
     } catch (e) {
       setError(errText(e));
@@ -148,6 +162,16 @@ export function PluginProvider({ children }: { children: ReactNode }) {
     return (data.items ?? data.plugins ?? []) as unknown[];
   }, []);
 
+  const setProcessAllowed = useCallback(async (allowed: boolean) => {
+    await pluginsSetProcessAllowed(allowed);
+    setProcessAllowedState(allowed);
+  }, []);
+
+  const callProcess = useCallback(
+    (id: string, method: string, params?: unknown) => pluginsProcessCall(id, method, params),
+    [],
+  );
+
   const value = useMemo<PluginsContextValue>(
     () => ({
       plugins,
@@ -160,8 +184,25 @@ export function PluginProvider({ children }: { children: ReactNode }) {
       uninstall,
       setEnabled,
       marketRefresh,
+      processAllowed,
+      setProcessAllowed,
+      callProcess,
     }),
-    [plugins, loading, error, reload, installDir, installZip, installUrl, uninstall, setEnabled, marketRefresh],
+    [
+      plugins,
+      loading,
+      error,
+      reload,
+      installDir,
+      installZip,
+      installUrl,
+      uninstall,
+      setEnabled,
+      marketRefresh,
+      processAllowed,
+      setProcessAllowed,
+      callProcess,
+    ],
   );
 
   return <PluginsContext.Provider value={value}>{children}</PluginsContext.Provider>;

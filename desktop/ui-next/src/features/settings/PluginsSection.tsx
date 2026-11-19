@@ -34,8 +34,19 @@ function asMarketItem(value: unknown): MarketItem | null {
 
 export function PluginsSection() {
   const { t } = useI18n();
-  const { plugins, loading, error, installDir, installZip, installUrl, uninstall, setEnabled, marketRefresh } =
-    usePlugins();
+  const {
+    plugins,
+    loading,
+    error,
+    installDir,
+    installZip,
+    installUrl,
+    uninstall,
+    setEnabled,
+    marketRefresh,
+    processAllowed,
+    setProcessAllowed,
+  } = usePlugins();
   const [marketUrl, setMarketUrl] = useState("");
   const [marketItems, setMarketItems] = useState<MarketItem[]>([]);
   const [busy, setBusy] = useState<string | null>(null);
@@ -77,6 +88,24 @@ export function PluginsSection() {
         <h2 className="text-base font-semibold">{t("plugins.title")}</h2>
         <p className="text-xs leading-relaxed text-base-content/55">{t("plugins.intro")}</p>
       </div>
+
+      <section className="rounded-lg border border-warning/40 bg-warning/5 p-3">
+        <label className="flex cursor-pointer items-start gap-3">
+          <input
+            type="checkbox"
+            className="toggle toggle-warning toggle-sm mt-0.5"
+            checked={processAllowed}
+            disabled={!!busy}
+            onChange={() => void run("process", () => setProcessAllowed(!processAllowed))}
+          />
+          <span className="min-w-0 flex-1">
+            <span className="block text-sm font-medium">{t("plugins.processAllowed")}</span>
+            <span className="mt-0.5 block text-xs leading-relaxed text-base-content/60">
+              {t("plugins.processWarning")}
+            </span>
+          </span>
+        </label>
+      </section>
 
       <div className="flex flex-wrap items-center gap-2">
         <button type="button" className="btn btn-sm gap-2" disabled={!!busy} onClick={() => void pickAndInstall(true)}>
@@ -140,6 +169,9 @@ export function PluginsSection() {
                       <span>{t("plugins.sidebarCount", { n: (plugin.sidebar ?? []).length })}</span>
                       <span>{t("plugins.modelCount", { n: (plugin.models ?? []).length })}</span>
                       <span>{t("plugins.mcpCount", { n: Object.keys(plugin.mcp_servers ?? {}).length })}</span>
+                      {plugin.has_process && (
+                        <span className="badge badge-xs badge-warning badge-soft">{t("plugins.processBadge")}</span>
+                      )}
                       {plugin.author && (
                         <span>
                           {t("plugins.by")} {plugin.author}

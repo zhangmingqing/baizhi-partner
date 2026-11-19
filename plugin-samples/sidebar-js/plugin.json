@@ -1,0 +1,37 @@
+{
+  "id": "sidebar-js-demo",
+  "name": "沙箱侧栏示例",
+  "version": "1.0.0",
+  "description": "演示 iframe 沙箱面板、postMessage 白名单动作与本地进程 JSON-RPC。",
+  "author": "MonkeyCode",
+  "icon": "JS",
+  "contributes": {
+    "sidebar": [
+      {
+        "id": "sandbox",
+        "title": "沙箱侧栏",
+        "icon": "JS",
+        "placement": "top",
+        "order": 10,
+        "entry": "panel.html",
+        "height": 300,
+        "blocks": [
+          {
+            "type": "text",
+            "text": "面板加载失败时的降级内容。"
+          }
+        ]
+      }
+    ],
+    "theme": {
+      "--plugin-demo-accent": "#f59e0b"
+    },
+    "process": {
+      "command": "node",
+      "args": [
+        "server.js"
+      ],
+      "timeout_ms": 10000
+    }
+  }
+}

@@ -1556,7 +1556,10 @@ fn main() {
     let builder = tauri::Builder::default().register_uri_scheme_protocol(
         preview::ARTIFACT_SCHEME,
         |_context, request| preview::artifact_protocol_response(request),
-    );
+    )
+    .register_uri_scheme_protocol(plugins::PLUGIN_SCHEME, |context, request| {
+        plugins::plugin_protocol_response(context.app_handle(), request)
+    });
     // 必须是首个插件：Windows/Linux 托盘进程仍在时再次点击快捷方式，不启动
     // 第二套客户端/引擎，而是把第二次启动转给已有进程并唤回主窗口。
     #[cfg(any(target_os = "windows", target_os = "linux"))]
@@ -1651,6 +1654,9 @@ fn main() {
             plugins::plugins_uninstall,
             plugins::plugins_set_enabled,
             plugins::plugins_market_refresh,
+            plugins::plugins_process_allowed,
+            plugins::plugins_set_process_allowed,
+            plugins::plugins_process_call,
             driver::upload_begin,
             driver::upload_file_path,
             driver::upload_read,
